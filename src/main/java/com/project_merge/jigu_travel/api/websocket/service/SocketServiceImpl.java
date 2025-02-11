@@ -1,6 +1,7 @@
 package com.project_merge.jigu_travel.api.websocket.service;
 
 import com.project_merge.jigu_travel.api.Place.service.PlaceServiceImpl;
+import com.project_merge.jigu_travel.api.user.service.UserService;
 import com.project_merge.jigu_travel.api.websocket.dto.requestDto.LocationRequestDto;
 import com.project_merge.jigu_travel.api.websocket.dto.responseDto.PlaceResponseDto;
 import com.project_merge.jigu_travel.api.websocket.dto.responseDto.SubscribeInitResponseDto;
@@ -23,6 +24,8 @@ public class SocketServiceImpl implements SocketService{
     @Autowired
     private PlaceServiceImpl placeServiceImpl;
 
+    private final UserService userService;
+
     @Override
     public void sendMessage(String accessToken, LocationRequestDto locationRequestDto) {
         String destination = getDestination(locationRequestDto.getServiceUUID());
@@ -33,8 +36,9 @@ public class SocketServiceImpl implements SocketService{
 
     @Override
     public SubscribeInitResponseDto createUUID(String accessToken) {
+        UUID userUUID = userService.getCurrentUserUUID(); // 사용자 고유 UUID 가져오기
         return SubscribeInitResponseDto.builder()
-                .serviceUUID(UUID.randomUUID())
+                .serviceUUID(userUUID)
                 .build();
     }
 

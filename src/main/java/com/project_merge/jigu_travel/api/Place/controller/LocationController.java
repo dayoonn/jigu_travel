@@ -1,8 +1,8 @@
 package com.project_merge.jigu_travel.api.Place.controller;
 
+import com.project_merge.jigu_travel.api.Place.dto.requestDto.UserLocationRequestDto;
 import com.project_merge.jigu_travel.api.Place.service.LocationService;
 import com.project_merge.jigu_travel.api.user.service.UserService;
-import com.project_merge.jigu_travel.api.websocket.dto.requestDto.LocationRequestDto;
 import com.project_merge.jigu_travel.global.common.BaseResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +22,7 @@ public class LocationController {
     @PostMapping("/user-location")
     public ResponseEntity<BaseResponse<String>> saveUserLocation(
             @RequestHeader("Authorization") String accessToken,
-            @RequestBody LocationRequestDto locationRequestDto) {
+            @RequestBody UserLocationRequestDto locationRequestDto) {
 
         if (locationRequestDto.getLatitude() == null || locationRequestDto.getLongitude() == null) {
             return ResponseEntity.badRequest().body(new BaseResponse<>(400, "위치 데이터가 누락되었습니다.", null));
@@ -39,7 +39,7 @@ public class LocationController {
     public ResponseEntity<BaseResponse<String>> endTravel(
             @RequestHeader("Authorization") String accessToken) {
 
-        locationService.saveAllUserLocationToDB();
+        locationService.saveLocationToDB();
         UUID userId = userService.getCurrentUserUUID();
         return ResponseEntity.ok(new BaseResponse<>(200, "여행 데이터 저장 완료", "All location data saved to DB for user: " + userId));
     }

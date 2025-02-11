@@ -2,6 +2,9 @@ package com.project_merge.jigu_travel.api.board.service;
 
 import com.nimbusds.jose.util.Resource;
 import com.project_merge.jigu_travel.api.auth.model.CustomUserDetails;
+import com.project_merge.jigu_travel.api.board.comment.dto.CommentResponseDto;
+import com.project_merge.jigu_travel.api.board.comment.service.CommentService;
+import com.project_merge.jigu_travel.api.board.comment.service.CommentServiceImpl;
 import com.project_merge.jigu_travel.api.board.dto.reponseDto.AttachmentDto;
 import com.project_merge.jigu_travel.api.board.dto.reponseDto.BoardResponseDto;
 import com.project_merge.jigu_travel.api.board.dto.reponseDto.BoardUpdateRequestDto;
@@ -40,6 +43,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class BoardServiceImpl implements BoardService {
+
+    @Autowired
+    private CommentService commentService;
 
     @Autowired
     private BoardJpaRepository boardJpaRepository;
@@ -244,6 +250,8 @@ public class BoardServiceImpl implements BoardService {
                         .collect(Collectors.toList())
                 : new ArrayList<>();
 
+        List<CommentResponseDto> comments = commentService.getCommentByBoardId(boardId);
+
         return BoardResponseDto.builder()
                 .boardId(board.getBoardId())
                 .userId(board.getUser().getLoginId())
@@ -253,6 +261,7 @@ public class BoardServiceImpl implements BoardService {
                 .inquiryType(board.getInquiryType())
                 .createdAt(board.getCreatedAt())
                 .attachments(attachments)
+                .comments(comments)
                 .build();
     }
 }

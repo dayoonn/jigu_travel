@@ -1,5 +1,6 @@
 package com.project_merge.jigu_travel.api.board.dto.reponseDto;
 
+import com.project_merge.jigu_travel.api.board.comment.dto.CommentResponseDto;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -29,6 +30,8 @@ public class BoardResponseDto {
     private LocalDateTime createdAt;
 
     private String inquiryType;
+
+    private List<CommentResponseDto> comments;
 
 
 }

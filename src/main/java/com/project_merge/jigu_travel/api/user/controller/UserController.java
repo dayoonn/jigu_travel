@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.password.PasswordEncoder; // 추가
 
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.List;
@@ -92,12 +95,18 @@ public class UserController {
 
     /** 전체 사용자 목록 조회 */
     @GetMapping("/all")
-    public ResponseEntity<BaseResponse<Page<UserDto>>> getAllUsers(
+    public ResponseEntity<BaseResponse<Page<UserDto>>> getAllActiveUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails // 로그인한 사용자 정보 가져오기
     ) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<UserDto> users = userRepository.findAll(pageable)
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // 현재 로그인한 사용자의 loginId 가져오기
+        String currentLoginId = userDetails.getUsername();
+
+        // 현재 로그인한 사용자를 제외한 삭제되지 않은 사용자만 조회
+        Page<UserDto> users = userRepository.findByDeletedFalseAndLoginIdNot(currentLoginId, pageable)
                 .map(user -> UserDto.builder()
                         .userId(user.getUserId())
                         .loginId(user.getLoginId())
@@ -106,9 +115,32 @@ public class UserController {
                         .gender(user.getGender())
                         .location(user.getLocation())
                         .role(user.getRole())
+                        .createdAt(user.getCreatedAt())
                         .build());
 
-        return ResponseEntity.ok(new BaseResponse<>(200, "전체 사용자 조회 성공", users));
+        return ResponseEntity.ok(new BaseResponse<>(200, "일반 사용자 조회 성공", users));
+    }
+
+    /** 탈퇴된 사용자 목록 조회 (Soft Delete) */
+    @GetMapping("/deleted")
+    public ResponseEntity<BaseResponse<Page<UserDto>>> getDeletedUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+        Page<UserDto> deletedUsers = userRepository.findByDeletedTrue(pageable)
+                .map(user -> UserDto.builder()
+                        .userId(user.getUserId())
+                        .loginId(user.getLoginId())
+                        .nickname(user.getNickname())
+                        .birthDate(user.getBirthDate())
+                        .gender(user.getGender())
+                        .location(user.getLocation())
+                        .role(user.getRole())
+                        .updatedAt(user.getUpdatedAt())
+                        .build());
+
+        return ResponseEntity.ok(new BaseResponse<>(200, "탈퇴된 사용자 조회 성공", deletedUsers));
     }
 
 
@@ -192,6 +224,59 @@ public class UserController {
         userRepository.save(userToDelete);
 
         return ResponseEntity.ok(new BaseResponse<>(200, "사용자 삭제 완료", null));
+    }
+
+    @PutMapping("/admin/restore/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<String>> restoreUserByAdmin(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails adminUser) {
+
+        if (adminUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new BaseResponse<>(401, "관리자 인증 실패", null));
+        }
+
+        User admin = userRepository.findByLoginIdAndDeletedFalse(adminUser.getUsername())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!admin.getRole().equals(Role.ROLE_ADMIN)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new BaseResponse<>(403, "관리자 권한이 필요합니다.", null));
+        }
+
+        User userToRestore = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!userToRestore.isDeleted()) {
+            return ResponseEntity.badRequest()
+                    .body(new BaseResponse<>(400, "이미 활성화된 사용자입니다.", null));
+        }
+
+        // 탈퇴된 사용자 복구
+        userToRestore.setDeleted(false);
+        userRepository.save(userToRestore);
+
+        return ResponseEntity.ok(new BaseResponse<>(200, "사용자 복구 완료", null));
+    }
+
+
+    @GetMapping("/admin/stats/today")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BaseResponse<Map<String, Long>>> getTodayUserStats() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay(); // 00:00:00
+        LocalDateTime endOfDay = today.atTime(23, 59, 59); // 23:59:59
+
+        long newUsers = userRepository.countByCreatedAtBetween(startOfDay, endOfDay);
+        long deletedUsers = userRepository.countByDeletedTrueAndUpdatedAtBetween(startOfDay, endOfDay);
+
+        Map<String, Long> stats = Map.of(
+                "newUsers", newUsers,
+                "deletedUsers", deletedUsers
+        );
+
+        return ResponseEntity.ok(new BaseResponse<>(200, "오늘 가입 & 탈퇴자 수 조회 성공", stats));
     }
 
 }

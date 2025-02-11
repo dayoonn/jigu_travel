@@ -1,6 +1,7 @@
 package com.project_merge.jigu_travel.api.ai_guide.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project_merge.jigu_travel.api.Place.dto.requestDto.UserLocationRequestDto;
 import com.project_merge.jigu_travel.api.Place.service.LocationService;
 import com.project_merge.jigu_travel.api.ai_classification.entity.UserInterest;
 import com.project_merge.jigu_travel.api.ai_classification.repository.UserInterestRepository;
@@ -11,7 +12,6 @@ import com.project_merge.jigu_travel.api.ai_guide.entity.ConversationHistory;
 import com.project_merge.jigu_travel.api.ai_guide.fast.FastApiClient;
 import com.project_merge.jigu_travel.api.ai_guide.repository.ConversationHistoryRepository;
 import com.project_merge.jigu_travel.api.user.service.UserService;
-import com.project_merge.jigu_travel.api.websocket.dto.requestDto.LocationRequestDto;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -150,7 +150,7 @@ public class AiGuideServiceImpl implements AiGuideService {
             userInput.setUser_category(Arrays.asList("맛집", "힐링")); //테스트용 기본값
         }
 
-        LocationRequestDto lastUserLocation = locationService.getLastUserLocation();
+        UserLocationRequestDto lastUserLocation = locationService.getLastUserLocation();
         if(lastUserLocation != null) {
             userInput.setLatitude(lastUserLocation.getLatitude());
             userInput.setLongitude(lastUserLocation.getLongitude());
